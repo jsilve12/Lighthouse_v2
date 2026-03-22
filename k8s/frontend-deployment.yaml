@@ -24,7 +24,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: us-central1-docker.pkg.dev/personal-project-289714/lighthouse/frontend@sha256:73b17a26104f7056f40663876d3781d5704bd7e56c33112ffff56bd5f2b892c5
+          image: us-central1-docker.pkg.dev/personal-project-289714/lighthouse/frontend@sha256:c7d6027a946fceeccba1e81e3723b7b622db85a9e5e430a1ab27105389d8aba5
           ports:
             - containerPort: 80
               protocol: TCP
