@@ -4,7 +4,6 @@ import duckdb
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from lighthouse_api.api.deps import get_current_user
 from lighthouse_api.core.database import get_db
@@ -15,7 +14,6 @@ from lighthouse_api.schemas.transformation import (
     SQLScriptUpdate,
     SQLScriptVersionCreate,
     SQLScriptVersionResponse,
-    SQLValidateRequest,
     SQLValidateResponse,
 )
 
@@ -25,10 +23,7 @@ router = APIRouter(prefix="/scripts", tags=["transformations"])
 @router.get("", response_model=list[SQLScriptResponse])
 async def list_scripts(db: AsyncSession = Depends(get_db)) -> list[SQLScriptResponse]:
     result = await db.execute(select(SQLScript).order_by(SQLScript.name))
-    return [
-        SQLScriptResponse(**{c.name: getattr(s, c.name) for c in s.__table__.columns})
-        for s in result.scalars().all()
-    ]
+    return [SQLScriptResponse(**{c.name: getattr(s, c.name) for c in s.__table__.columns}) for s in result.scalars().all()]
 
 
 @router.post("", response_model=SQLScriptResponse, status_code=201)
@@ -86,10 +81,7 @@ async def list_versions(script_id: uuid.UUID, db: AsyncSession = Depends(get_db)
         .where(SQLScriptVersion.script_id == script_id)
         .order_by(SQLScriptVersion.major_version.desc(), SQLScriptVersion.minor_version.desc())
     )
-    return [
-        SQLScriptVersionResponse(**{c.name: getattr(v, c.name) for c in v.__table__.columns})
-        for v in result.scalars().all()
-    ]
+    return [SQLScriptVersionResponse(**{c.name: getattr(v, c.name) for c in v.__table__.columns}) for v in result.scalars().all()]
 
 
 @router.post("/{script_id}/versions", response_model=SQLScriptVersionResponse, status_code=201)
@@ -115,9 +107,7 @@ async def create_version(
 
 @router.get("/versions/{version_id}", response_model=SQLScriptVersionResponse)
 async def get_version(version_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> SQLScriptVersionResponse:
-    version = (await db.execute(
-        select(SQLScriptVersion).where(SQLScriptVersion.id == version_id)
-    )).scalar_one_or_none()
+    version = (await db.execute(select(SQLScriptVersion).where(SQLScriptVersion.id == version_id))).scalar_one_or_none()
     if not version:
         raise HTTPException(status_code=404, detail="Version not found")
     return SQLScriptVersionResponse(**{c.name: getattr(version, c.name) for c in version.__table__.columns})
@@ -125,9 +115,7 @@ async def get_version(version_id: uuid.UUID, db: AsyncSession = Depends(get_db))
 
 @router.post("/versions/{version_id}/validate", response_model=SQLValidateResponse)
 async def validate_sql(version_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> SQLValidateResponse:
-    version = (await db.execute(
-        select(SQLScriptVersion).where(SQLScriptVersion.id == version_id)
-    )).scalar_one_or_none()
+    version = (await db.execute(select(SQLScriptVersion).where(SQLScriptVersion.id == version_id))).scalar_one_or_none()
     if not version:
         raise HTTPException(status_code=404, detail="Version not found")
 

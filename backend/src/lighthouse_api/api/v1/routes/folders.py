@@ -23,20 +23,18 @@ async def list_folders(
     if not ds:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    result = await db.execute(
-        select(Folder).where(Folder.dataset_id == dataset_id).order_by(Folder.sort_order, Folder.name)
-    )
+    result = await db.execute(select(Folder).where(Folder.dataset_id == dataset_id).order_by(Folder.sort_order, Folder.name))
     folders = list(result.scalars().all())
 
     items = []
     for f in folders:
-        schema_count = (await db.execute(
-            select(func.count(SchemaVersion.id)).where(SchemaVersion.folder_id == f.id)
-        )).scalar() or 0
-        items.append(FolderResponse(
-            **{c.name: getattr(f, c.name) for c in f.__table__.columns},
-            schema_count=schema_count,
-        ))
+        schema_count = (await db.execute(select(func.count(SchemaVersion.id)).where(SchemaVersion.folder_id == f.id))).scalar() or 0
+        items.append(
+            FolderResponse(
+                **{c.name: getattr(f, c.name) for c in f.__table__.columns},
+                schema_count=schema_count,
+            )
+        )
     return items
 
 
@@ -69,9 +67,7 @@ async def get_folder(
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
 
-    schema_count = (await db.execute(
-        select(func.count(SchemaVersion.id)).where(SchemaVersion.folder_id == folder.id)
-    )).scalar() or 0
+    schema_count = (await db.execute(select(func.count(SchemaVersion.id)).where(SchemaVersion.folder_id == folder.id))).scalar() or 0
 
     return FolderResponse(
         **{c.name: getattr(folder, c.name) for c in folder.__table__.columns},
@@ -94,9 +90,7 @@ async def update_folder(
         setattr(folder, key, value)
     await db.flush()
 
-    schema_count = (await db.execute(
-        select(func.count(SchemaVersion.id)).where(SchemaVersion.folder_id == folder.id)
-    )).scalar() or 0
+    schema_count = (await db.execute(select(func.count(SchemaVersion.id)).where(SchemaVersion.folder_id == folder.id))).scalar() or 0
 
     return FolderResponse(
         **{c.name: getattr(folder, c.name) for c in folder.__table__.columns},

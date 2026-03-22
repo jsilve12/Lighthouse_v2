@@ -18,9 +18,7 @@ class Pipeline(UUIDMixin, TimestampMixin, Base):
 
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    dataset_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("datasets.id"), nullable=True
-    )
+    dataset_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("datasets.id"), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
 
     dataset: Mapped["Dataset | None"] = relationship("Dataset", back_populates="pipelines")
@@ -32,23 +30,15 @@ class Pipeline(UUIDMixin, TimestampMixin, Base):
 
 class PipelineStep(UUIDMixin, Base):
     __tablename__ = "pipeline_steps"
-    __table_args__ = (
-        UniqueConstraint("pipeline_id", "step_order", name="uq_pipeline_steps_pipeline_order"),
-    )
+    __table_args__ = (UniqueConstraint("pipeline_id", "step_order", name="uq_pipeline_steps_pipeline_order"),)
 
-    pipeline_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=False
-    )
-    script_version_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sql_script_versions.id"), nullable=False
-    )
+    pipeline_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=False)
+    script_version_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sql_script_versions.id"), nullable=False)
     step_order: Mapped[int] = mapped_column(Integer, nullable=False)
     step_name: Mapped[str] = mapped_column(String(255), nullable=False)
     timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="300")
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     pipeline: Mapped["Pipeline"] = relationship("Pipeline", back_populates="steps")
     script_version: Mapped["SQLScriptVersion"] = relationship("SQLScriptVersion")
@@ -61,9 +51,7 @@ class PipelineRun(UUIDMixin, Base):
         Index("ix_pipeline_runs_created_at", "created_at"),
     )
 
-    pipeline_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pipelines.id"), nullable=False
-    )
+    pipeline_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pipelines.id"), nullable=False)
     environment: Mapped[str] = mapped_column(String(10), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="pending")
     triggered_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -71,9 +59,7 @@ class PipelineRun(UUIDMixin, Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     env_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     pipeline: Mapped["Pipeline"] = relationship("Pipeline", back_populates="runs")
     step_logs: Mapped[list["PipelineRunStepLog"]] = relationship(
@@ -87,18 +73,14 @@ class PipelineRunStepLog(UUIDMixin, Base):
     pipeline_run_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pipeline_runs.id", ondelete="CASCADE"), nullable=False
     )
-    step_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pipeline_steps.id"), nullable=False
-    )
+    step_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pipeline_steps.id"), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="pending")
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     log_output: Mapped[str | None] = mapped_column(Text, nullable=True)
     rows_affected: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     pipeline_run: Mapped["PipelineRun"] = relationship("PipelineRun", back_populates="step_logs")
     step: Mapped["PipelineStep"] = relationship("PipelineStep")

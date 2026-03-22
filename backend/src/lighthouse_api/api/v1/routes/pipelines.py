@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from lighthouse_api.api.deps import get_current_user
 from lighthouse_api.core.database import get_db
 from lighthouse_api.models.pipeline import Pipeline, PipelineRun, PipelineRunStepLog, PipelineStep
+from lighthouse_api.models.transformation import SQLScriptVersion
 from lighthouse_api.schemas.pipeline import (
     PipelineCreate,
     PipelineResponse,
@@ -31,13 +32,13 @@ async def list_pipelines(db: AsyncSession = Depends(get_db)) -> list[PipelineRes
     pipelines = list(result.scalars().all())
     items = []
     for p in pipelines:
-        step_count = (await db.execute(
-            select(func.count(PipelineStep.id)).where(PipelineStep.pipeline_id == p.id)
-        )).scalar() or 0
-        items.append(PipelineResponse(
-            **{c.name: getattr(p, c.name) for c in p.__table__.columns},
-            step_count=step_count,
-        ))
+        step_count = (await db.execute(select(func.count(PipelineStep.id)).where(PipelineStep.pipeline_id == p.id))).scalar() or 0
+        items.append(
+            PipelineResponse(
+                **{c.name: getattr(p, c.name) for c in p.__table__.columns},
+                step_count=step_count,
+            )
+        )
     return items
 
 
@@ -61,9 +62,7 @@ async def get_pipeline(pipeline_id: uuid.UUID, db: AsyncSession = Depends(get_db
     pipeline = (await db.execute(select(Pipeline).where(Pipeline.id == pipeline_id))).scalar_one_or_none()
     if not pipeline:
         raise HTTPException(status_code=404, detail="Pipeline not found")
-    step_count = (await db.execute(
-        select(func.count(PipelineStep.id)).where(PipelineStep.pipeline_id == pipeline.id)
-    )).scalar() or 0
+    step_count = (await db.execute(select(func.count(PipelineStep.id)).where(PipelineStep.pipeline_id == pipeline.id))).scalar() or 0
     return PipelineResponse(
         **{c.name: getattr(pipeline, c.name) for c in pipeline.__table__.columns},
         step_count=step_count,
@@ -83,9 +82,7 @@ async def update_pipeline(
     for key, value in body.model_dump(exclude_unset=True).items():
         setattr(pipeline, key, value)
     await db.flush()
-    step_count = (await db.execute(
-        select(func.count(PipelineStep.id)).where(PipelineStep.pipeline_id == pipeline.id)
-    )).scalar() or 0
+    step_count = (await db.execute(select(func.count(PipelineStep.id)).where(PipelineStep.pipeline_id == pipeline.id))).scalar() or 0
     return PipelineResponse(
         **{c.name: getattr(pipeline, c.name) for c in pipeline.__table__.columns},
         step_count=step_count,
@@ -107,13 +104,8 @@ async def delete_pipeline(
 # Steps
 @router.get("/{pipeline_id}/steps", response_model=list[PipelineStepResponse])
 async def list_steps(pipeline_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> list[PipelineStepResponse]:
-    result = await db.execute(
-        select(PipelineStep).where(PipelineStep.pipeline_id == pipeline_id).order_by(PipelineStep.step_order)
-    )
-    return [
-        PipelineStepResponse(**{c.name: getattr(s, c.name) for c in s.__table__.columns})
-        for s in result.scalars().all()
-    ]
+    result = await db.execute(select(PipelineStep).where(PipelineStep.pipeline_id == pipeline_id).order_by(PipelineStep.step_order))
+    return [PipelineStepResponse(**{c.name: getattr(s, c.name) for c in s.__table__.columns}) for s in result.scalars().all()]
 
 
 @router.post("/{pipeline_id}/steps", response_model=PipelineStepResponse, status_code=201)
@@ -137,9 +129,9 @@ async def reorder_steps(
     user: dict = Depends(get_current_user),
 ) -> dict:
     for item in body.steps:
-        step = (await db.execute(
-            select(PipelineStep).where(PipelineStep.id == item.step_id, PipelineStep.pipeline_id == pipeline_id)
-        )).scalar_one_or_none()
+        step = (
+            await db.execute(select(PipelineStep).where(PipelineStep.id == item.step_id, PipelineStep.pipeline_id == pipeline_id))
+        ).scalar_one_or_none()
         if step:
             step.step_order = item.new_order
     await db.flush()
@@ -167,9 +159,9 @@ async def trigger_run(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ) -> PipelineRunResponse:
-    pipeline = (await db.execute(
-        select(Pipeline).options(selectinload(Pipeline.steps)).where(Pipeline.id == pipeline_id)
-    )).scalar_one_or_none()
+    pipeline = (
+        await db.execute(select(Pipeline).options(selectinload(Pipeline.steps)).where(Pipeline.id == pipeline_id))
+    ).scalar_one_or_none()
     if not pipeline:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     if not pipeline.steps:
@@ -178,9 +170,7 @@ async def trigger_run(
     # Collect env snapshot from all script versions
     env_snapshot = {}
     for step in pipeline.steps:
-        sv = (await db.execute(
-            select(SQLScriptVersion).where(SQLScriptVersion.id == step.script_version_id)
-        )).scalar_one_or_none()
+        sv = (await db.execute(select(SQLScriptVersion).where(SQLScriptVersion.id == step.script_version_id))).scalar_one_or_none()
         if sv and sv.env_config:
             for var_name, env_map in sv.env_config.items():
                 resolved = env_map.get(body.environment, env_map.get("default"))
@@ -207,6 +197,7 @@ async def trigger_run(
 
     # Queue background execution
     from lighthouse_api.services.executor import execute_pipeline_run
+
     background_tasks.add_task(execute_pipeline_run, str(run.id))
 
     return PipelineRunResponse(**{c.name: getattr(run, c.name) for c in run.__table__.columns})
@@ -226,27 +217,17 @@ async def list_runs(
         .offset((page - 1) * size)
         .limit(size)
     )
-    return [
-        PipelineRunResponse(**{c.name: getattr(r, c.name) for c in r.__table__.columns})
-        for r in result.scalars().all()
-    ]
+    return [PipelineRunResponse(**{c.name: getattr(r, c.name) for c in r.__table__.columns}) for r in result.scalars().all()]
 
 
 @router.get("/runs/{run_id}", response_model=PipelineRunDetailResponse)
 async def get_run(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> PipelineRunDetailResponse:
-    result = await db.execute(
-        select(PipelineRun)
-        .options(selectinload(PipelineRun.step_logs))
-        .where(PipelineRun.id == run_id)
-    )
+    result = await db.execute(select(PipelineRun).options(selectinload(PipelineRun.step_logs)).where(PipelineRun.id == run_id))
     run = result.scalar_one_or_none()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    step_logs = [
-        PipelineRunStepLogResponse(**{c.name: getattr(sl, c.name) for c in sl.__table__.columns})
-        for sl in run.step_logs
-    ]
+    step_logs = [PipelineRunStepLogResponse(**{c.name: getattr(sl, c.name) for c in sl.__table__.columns}) for sl in run.step_logs]
 
     return PipelineRunDetailResponse(
         **{c.name: getattr(run, c.name) for c in run.__table__.columns},

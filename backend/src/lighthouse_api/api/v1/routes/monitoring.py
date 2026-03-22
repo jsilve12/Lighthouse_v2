@@ -24,16 +24,11 @@ router = APIRouter(tags=["monitoring"])
 @router.get("/monitoring/dashboard", response_model=DashboardResponse)
 async def dashboard(db: AsyncSession = Depends(get_db)) -> DashboardResponse:
     total = (await db.execute(select(func.count(Pipeline.id)))).scalar() or 0
-    active = (await db.execute(
-        select(func.count(Pipeline.id)).where(Pipeline.is_active.is_(True))
-    )).scalar() or 0
+    active = (await db.execute(select(func.count(Pipeline.id)).where(Pipeline.is_active.is_(True)))).scalar() or 0
 
     seven_days_ago = datetime.now(UTC) - timedelta(days=7)
     recent_runs_result = await db.execute(
-        select(PipelineRun)
-        .where(PipelineRun.created_at >= seven_days_ago)
-        .order_by(PipelineRun.created_at.desc())
-        .limit(20)
+        select(PipelineRun).where(PipelineRun.created_at >= seven_days_ago).order_by(PipelineRun.created_at.desc()).limit(20)
     )
     recent_runs = [
         {
@@ -46,20 +41,18 @@ async def dashboard(db: AsyncSession = Depends(get_db)) -> DashboardResponse:
         for r in recent_runs_result.scalars().all()
     ]
 
-    total_7d = (await db.execute(
-        select(func.count(PipelineRun.id)).where(PipelineRun.created_at >= seven_days_ago)
-    )).scalar() or 0
-    success_7d = (await db.execute(
-        select(func.count(PipelineRun.id)).where(
-            PipelineRun.created_at >= seven_days_ago,
-            PipelineRun.status == "success",
+    total_7d = (await db.execute(select(func.count(PipelineRun.id)).where(PipelineRun.created_at >= seven_days_ago))).scalar() or 0
+    success_7d = (
+        await db.execute(
+            select(func.count(PipelineRun.id)).where(
+                PipelineRun.created_at >= seven_days_ago,
+                PipelineRun.status == "success",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
     success_rate = (success_7d / total_7d * 100) if total_7d > 0 else 100.0
 
-    active_alarms = (await db.execute(
-        select(func.count(AlarmEvent.id)).where(AlarmEvent.acknowledged.is_(False))
-    )).scalar() or 0
+    active_alarms = (await db.execute(select(func.count(AlarmEvent.id)).where(AlarmEvent.acknowledged.is_(False)))).scalar() or 0
 
     return DashboardResponse(
         total_pipelines=total,
@@ -72,13 +65,8 @@ async def dashboard(db: AsyncSession = Depends(get_db)) -> DashboardResponse:
 
 @router.get("/pipelines/{pipeline_id}/alarms", response_model=list[AlarmRuleResponse])
 async def list_alarms(pipeline_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> list[AlarmRuleResponse]:
-    result = await db.execute(
-        select(AlarmRule).where(AlarmRule.pipeline_id == pipeline_id).order_by(AlarmRule.name)
-    )
-    return [
-        AlarmRuleResponse(**{c.name: getattr(a, c.name) for c in a.__table__.columns})
-        for a in result.scalars().all()
-    ]
+    result = await db.execute(select(AlarmRule).where(AlarmRule.pipeline_id == pipeline_id).order_by(AlarmRule.name))
+    return [AlarmRuleResponse(**{c.name: getattr(a, c.name) for c in a.__table__.columns}) for a in result.scalars().all()]
 
 
 @router.post("/pipelines/{pipeline_id}/alarms", response_model=AlarmRuleResponse, status_code=201)
@@ -137,10 +125,7 @@ async def list_alarm_events(
         query = query.join(AlarmRule).where(AlarmRule.pipeline_id == pipeline_id)
     query = query.order_by(AlarmEvent.created_at.desc()).offset((page - 1) * size).limit(size)
     result = await db.execute(query)
-    return [
-        AlarmEventResponse(**{c.name: getattr(e, c.name) for c in e.__table__.columns})
-        for e in result.scalars().all()
-    ]
+    return [AlarmEventResponse(**{c.name: getattr(e, c.name) for c in e.__table__.columns}) for e in result.scalars().all()]
 
 
 @router.post("/alarm-events/{event_id}/acknowledge")
@@ -158,10 +143,5 @@ async def acknowledge_alarm(
 
 @router.get("/pipeline-runs/{run_id}/statistics", response_model=list[RunStatisticResponse])
 async def get_run_statistics(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> list[RunStatisticResponse]:
-    result = await db.execute(
-        select(RunStatistic).where(RunStatistic.pipeline_run_id == run_id).order_by(RunStatistic.created_at)
-    )
-    return [
-        RunStatisticResponse(**{c.name: getattr(s, c.name) for c in s.__table__.columns})
-        for s in result.scalars().all()
-    ]
+    result = await db.execute(select(RunStatistic).where(RunStatistic.pipeline_run_id == run_id).order_by(RunStatistic.created_at))
+    return [RunStatisticResponse(**{c.name: getattr(s, c.name) for c in s.__table__.columns}) for s in result.scalars().all()]

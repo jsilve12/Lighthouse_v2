@@ -1,9 +1,4 @@
-from collections.abc import AsyncGenerator
-
-from fastapi import Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from lighthouse_api.core.database import get_db
+from fastapi import Request
 
 
 async def get_current_user(request: Request) -> dict:

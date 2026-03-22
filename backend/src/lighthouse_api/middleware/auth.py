@@ -57,9 +57,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def _validate_api_key(self, key: str) -> str | None:
         prefix = key[3:11] if len(key) > 11 else key[3:]  # Skip "lh_" prefix for the stored prefix
         async with async_session() as session:
-            result = await session.execute(
-                select(ApiKey).where(ApiKey.prefix == prefix, ApiKey.is_active.is_(True))
-            )
+            result = await session.execute(select(ApiKey).where(ApiKey.prefix == prefix, ApiKey.is_active.is_(True)))
             api_key_record = result.scalar_one_or_none()
             if api_key_record is None:
                 return None

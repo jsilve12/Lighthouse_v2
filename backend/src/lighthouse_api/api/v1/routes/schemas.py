@@ -10,7 +10,6 @@ from lighthouse_api.core.database import get_db
 from lighthouse_api.models.folder import Folder
 from lighthouse_api.models.schema import SchemaField, SchemaVersion
 from lighthouse_api.schemas.schema import (
-    SchemaFieldCreate,
     SchemaFieldResponse,
     SchemaVersionCreate,
     SchemaVersionDetailResponse,
@@ -60,13 +59,13 @@ async def list_schemas(
 
     items = []
     for s in schemas:
-        field_count = (await db.execute(
-            select(func.count(SchemaField.id)).where(SchemaField.schema_version_id == s.id)
-        )).scalar() or 0
-        items.append(SchemaVersionResponse(
-            **{c.name: getattr(s, c.name) for c in s.__table__.columns},
-            field_count=field_count,
-        ))
+        field_count = (await db.execute(select(func.count(SchemaField.id)).where(SchemaField.schema_version_id == s.id))).scalar() or 0
+        items.append(
+            SchemaVersionResponse(
+                **{c.name: getattr(s, c.name) for c in s.__table__.columns},
+                field_count=field_count,
+            )
+        )
     return items
 
 
@@ -116,11 +115,7 @@ async def get_schema(
     schema_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ) -> SchemaVersionDetailResponse:
-    result = await db.execute(
-        select(SchemaVersion)
-        .options(selectinload(SchemaVersion.fields))
-        .where(SchemaVersion.id == schema_id)
-    )
+    result = await db.execute(select(SchemaVersion).options(selectinload(SchemaVersion.fields)).where(SchemaVersion.id == schema_id))
     schema = result.scalar_one_or_none()
     if not schema:
         raise HTTPException(status_code=404, detail="Schema not found")
@@ -149,9 +144,7 @@ async def update_schema(
         setattr(schema, key, value)
     await db.flush()
 
-    field_count = (await db.execute(
-        select(func.count(SchemaField.id)).where(SchemaField.schema_version_id == schema.id)
-    )).scalar() or 0
+    field_count = (await db.execute(select(func.count(SchemaField.id)).where(SchemaField.schema_version_id == schema.id))).scalar() or 0
 
     return SchemaVersionResponse(
         **{c.name: getattr(schema, c.name) for c in schema.__table__.columns},
@@ -172,10 +165,7 @@ async def get_sensitive_fields(
         )
     )
     fields = list(result.scalars().all())
-    return [
-        SchemaFieldResponse(**{c.name: getattr(f, c.name) for c in f.__table__.columns}, children=[])
-        for f in fields
-    ]
+    return [SchemaFieldResponse(**{c.name: getattr(f, c.name) for c in f.__table__.columns}, children=[]) for f in fields]
 
 
 @router.get("/schemas/compare")
@@ -184,12 +174,8 @@ async def compare_schemas(
     right: uuid.UUID = Query(...),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    left_result = await db.execute(
-        select(SchemaField).where(SchemaField.schema_version_id == left).order_by(SchemaField.sort_order)
-    )
-    right_result = await db.execute(
-        select(SchemaField).where(SchemaField.schema_version_id == right).order_by(SchemaField.sort_order)
-    )
+    left_result = await db.execute(select(SchemaField).where(SchemaField.schema_version_id == left).order_by(SchemaField.sort_order))
+    right_result = await db.execute(select(SchemaField).where(SchemaField.schema_version_id == right).order_by(SchemaField.sort_order))
     left_fields = {f.name: f for f in left_result.scalars().all()}
     right_fields = {f.name: f for f in right_result.scalars().all()}
 

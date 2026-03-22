@@ -63,11 +63,13 @@ async def callback(code: str, request: Request) -> Response:
         )
         userinfo = userinfo_response.json()
 
-    jwt_token = create_jwt_token({
-        "sub": userinfo.get("id", ""),
-        "email": userinfo.get("email", ""),
-        "name": userinfo.get("name", ""),
-    })
+    jwt_token = create_jwt_token(
+        {
+            "sub": userinfo.get("id", ""),
+            "email": userinfo.get("email", ""),
+            "name": userinfo.get("name", ""),
+        }
+    )
 
     response = Response(
         status_code=302,
@@ -132,9 +134,7 @@ async def list_api_keys(
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ) -> list:
-    result = await db.execute(
-        select(ApiKey).where(ApiKey.created_by == user["email"]).order_by(ApiKey.created_at.desc())
-    )
+    result = await db.execute(select(ApiKey).where(ApiKey.created_by == user["email"]).order_by(ApiKey.created_at.desc()))
     return list(result.scalars().all())
 
 
@@ -145,12 +145,12 @@ async def revoke_api_key(
     user: dict = Depends(get_current_user),
 ) -> dict:
     import uuid
-    result = await db.execute(
-        select(ApiKey).where(ApiKey.id == uuid.UUID(key_id), ApiKey.created_by == user["email"])
-    )
+
+    result = await db.execute(select(ApiKey).where(ApiKey.id == uuid.UUID(key_id), ApiKey.created_by == user["email"]))
     api_key = result.scalar_one_or_none()
     if not api_key:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="API key not found")
     api_key.is_active = False
     return {"status": "revoked"}

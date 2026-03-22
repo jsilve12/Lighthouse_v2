@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from lighthouse_api.core.database import async_session
 from lighthouse_api.models.monitoring import AlarmEvent, AlarmRule, RunStatistic
-from lighthouse_api.models.pipeline import PipelineRun, PipelineRunStepLog, PipelineStep
+from lighthouse_api.models.pipeline import PipelineRun, PipelineStep
 from lighthouse_api.models.transformation import SQLScriptVersion
 
 logger = structlog.get_logger()
@@ -17,9 +17,7 @@ logger = structlog.get_logger()
 async def execute_pipeline_run(run_id: str) -> None:
     async with async_session() as session:
         result = await session.execute(
-            select(PipelineRun)
-            .options(selectinload(PipelineRun.step_logs))
-            .where(PipelineRun.id == uuid.UUID(run_id))
+            select(PipelineRun).options(selectinload(PipelineRun.step_logs)).where(PipelineRun.id == uuid.UUID(run_id))
         )
         run = result.scalar_one_or_none()
         if not run:
@@ -32,9 +30,7 @@ async def execute_pipeline_run(run_id: str) -> None:
 
         # Get ordered steps
         steps_result = await session.execute(
-            select(PipelineStep)
-            .where(PipelineStep.pipeline_id == run.pipeline_id)
-            .order_by(PipelineStep.step_order)
+            select(PipelineStep).where(PipelineStep.pipeline_id == run.pipeline_id).order_by(PipelineStep.step_order)
         )
         steps = list(steps_result.scalars().all())
 
@@ -62,9 +58,9 @@ async def execute_pipeline_run(run_id: str) -> None:
                 await session.commit()
 
                 # Get SQL body
-                sv = (await session.execute(
-                    select(SQLScriptVersion).where(SQLScriptVersion.id == step.script_version_id)
-                )).scalar_one_or_none()
+                sv = (
+                    await session.execute(select(SQLScriptVersion).where(SQLScriptVersion.id == step.script_version_id))
+                ).scalar_one_or_none()
 
                 if not sv:
                     step_log.status = "failed"
@@ -146,8 +142,7 @@ async def _evaluate_alarms(session, run: PipelineRun) -> None:
 
     for alarm in alarms:
         stats_result = await session.execute(
-            select(RunStatistic)
-            .where(
+            select(RunStatistic).where(
                 RunStatistic.pipeline_run_id == run.id,
                 RunStatistic.metric_name == alarm.metric_name,
             )

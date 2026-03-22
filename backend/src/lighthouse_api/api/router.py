@@ -1,6 +1,16 @@
 from fastapi import APIRouter
 
-from lighthouse_api.api.v1.routes import audit, auth, datasets, folders, health, monitoring, pipelines, schemas, transformations
+from lighthouse_api.api.v1.routes import (
+    audit,
+    auth,
+    datasets,
+    folders,
+    health,
+    monitoring,
+    pipelines,
+    schemas,
+    transformations,
+)
 
 api_router = APIRouter(prefix="/api/v1")
 

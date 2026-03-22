@@ -42,7 +42,17 @@ class AuditLoggerMiddleware(BaseHTTPMiddleware):
         resource_type = "unknown"
         resource_id = None
         for i, part in enumerate(parts):
-            if part in ("datasets", "folders", "schemas", "scripts", "pipelines", "alarm-rules", "alarm-events", "api-keys"):
+            resource_names = (
+                "datasets",
+                "folders",
+                "schemas",
+                "scripts",
+                "pipelines",
+                "alarm-rules",
+                "alarm-events",
+                "api-keys",
+            )
+            if part in resource_names:
                 resource_type = part.replace("-", "_")
                 if i + 1 < len(parts):
                     try:

@@ -3,7 +3,6 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from lighthouse_api.api.deps import get_current_user
 from lighthouse_api.core.database import get_db
@@ -46,13 +45,13 @@ async def list_datasets(
 
     items = []
     for ds in datasets:
-        folder_count = (await db.execute(
-            select(func.count(Folder.id)).where(Folder.dataset_id == ds.id)
-        )).scalar() or 0
-        items.append(DatasetResponse(
-            **{c.name: getattr(ds, c.name) for c in ds.__table__.columns},
-            folder_count=folder_count,
-        ))
+        folder_count = (await db.execute(select(func.count(Folder.id)).where(Folder.dataset_id == ds.id))).scalar() or 0
+        items.append(
+            DatasetResponse(
+                **{c.name: getattr(ds, c.name) for c in ds.__table__.columns},
+                folder_count=folder_count,
+            )
+        )
 
     return DatasetListResponse(items=items, total=total, page=page, size=size)
 
@@ -82,9 +81,7 @@ async def get_dataset(
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    folder_count = (await db.execute(
-        select(func.count(Folder.id)).where(Folder.dataset_id == dataset.id)
-    )).scalar() or 0
+    folder_count = (await db.execute(select(func.count(Folder.id)).where(Folder.dataset_id == dataset.id))).scalar() or 0
 
     return DatasetResponse(
         **{c.name: getattr(dataset, c.name) for c in dataset.__table__.columns},
@@ -109,9 +106,7 @@ async def update_dataset(
 
     await db.flush()
 
-    folder_count = (await db.execute(
-        select(func.count(Folder.id)).where(Folder.dataset_id == dataset.id)
-    )).scalar() or 0
+    folder_count = (await db.execute(select(func.count(Folder.id)).where(Folder.dataset_id == dataset.id))).scalar() or 0
 
     return DatasetResponse(
         **{c.name: getattr(dataset, c.name) for c in dataset.__table__.columns},
@@ -152,9 +147,7 @@ async def bump_version(
 
     await db.flush()
 
-    folder_count = (await db.execute(
-        select(func.count(Folder.id)).where(Folder.dataset_id == dataset.id)
-    )).scalar() or 0
+    folder_count = (await db.execute(select(func.count(Folder.id)).where(Folder.dataset_id == dataset.id))).scalar() or 0
 
     return DatasetResponse(
         **{c.name: getattr(dataset, c.name) for c in dataset.__table__.columns},

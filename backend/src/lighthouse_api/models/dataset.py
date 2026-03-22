@@ -1,8 +1,7 @@
-import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from lighthouse_api.models.base import Base, TimestampMixin, UUIDMixin
