@@ -1,0 +1,84 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/895454511993/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: lighthouse-cicd@personal-project-289714.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Set short SHA
+        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Build and push backend
+        run: |
+          docker build -t us-central1-docker.pkg.dev/personal-project-289714/lighthouse/api:$SHORT_SHA backend/
+          docker push us-central1-docker.pkg.dev/personal-project-289714/lighthouse/api:$SHORT_SHA
+
+      - name: Build and push frontend
+        run: |
+          docker build -t us-central1-docker.pkg.dev/personal-project-289714/lighthouse/frontend:$SHORT_SHA frontend/
+          docker push us-central1-docker.pkg.dev/personal-project-289714/lighthouse/frontend:$SHORT_SHA
+
+      - name: Trivy scan backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: us-central1-docker.pkg.dev/personal-project-289714/lighthouse/api:${{ env.SHORT_SHA }}
+          exit-code: 1
+          severity: CRITICAL,HIGH
+          format: table
+
+      - name: Trivy scan frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: us-central1-docker.pkg.dev/personal-project-289714/lighthouse/frontend:${{ env.SHORT_SHA }}
+          exit-code: 1
+          severity: CRITICAL,HIGH
+          format: table
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/895454511993/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: lighthouse-cicd@personal-project-289714.iam.gserviceaccount.com
+
+      - uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: cluster
+          location: us-central1
+
+      - name: Set short SHA
+        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Deploy
+        run: |
+          kubectl set image deployment/lighthouse-api api=us-central1-docker.pkg.dev/personal-project-289714/lighthouse/api:$SHORT_SHA -n lighthouse
+          kubectl set image deployment/lighthouse-frontend frontend=us-central1-docker.pkg.dev/personal-project-289714/lighthouse/frontend:$SHORT_SHA -n lighthouse
+          kubectl rollout status deployment/lighthouse-api -n lighthouse --timeout=300s
+          kubectl rollout status deployment/lighthouse-frontend -n lighthouse --timeout=300s

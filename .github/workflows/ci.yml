@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python security tools
+        run: pip install bandit pip-audit safety
+
+      - name: Run Bandit
+        run: |
+          cd backend
+          bandit -r src/ -f json -o /tmp/bandit-report.json || true
+          bandit -r src/ -f txt || true
+
+      - name: Run pip-audit
+        run: |
+          cd backend
+          pip install .
+          pip-audit --output /tmp/pip-audit.json --format json || true
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Run npm audit
+        run: cd frontend && npm audit --audit-level=moderate --json > /tmp/npm-audit.json || true
+
+      - name: Compute security score
+        id: score
+        run: |
+          python3 -c "
+          import json, sys
+          score = 100
+          try:
+              with open('/tmp/bandit-report.json') as f:
+                  data = json.load(f)
+                  for r in data.get('results', []):
+                      if r.get('issue_severity') == 'HIGH': score -= 10
+                      elif r.get('issue_severity') == 'MEDIUM': score -= 5
+          except: pass
+          try:
+              with open('/tmp/pip-audit.json') as f:
+                  data = json.load(f)
+                  score -= len(data.get('dependencies', [])) * 5
+          except: pass
+          try:
+              with open('/tmp/npm-audit.json') as f:
+                  data = json.load(f)
+                  vulns = data.get('metadata', {}).get('vulnerabilities', {})
+                  score -= vulns.get('high', 0) * 10
+                  score -= vulns.get('moderate', 0) * 3
+          except: pass
+          score = max(0, score)
+          print(f'Security Score: {score}/100')
+          if score < 70:
+              print('FAIL: Score below threshold of 70')
+              sys.exit(1)
+          "
+
+      - name: Post score to summary
+        if: always()
+        run: echo "## Security Score" >> $GITHUB_STEP_SUMMARY
+
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Lint backend
+        run: |
+          pip install ruff mypy
+          cd backend
+          ruff check src/ tests/
+          ruff format --check src/ tests/
+
+      - name: Lint frontend
+        run: |
+          cd frontend
+          npm ci
+          npx tsc --noEmit
+
+  backend-test:
+    needs: lint-and-typecheck
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: lighthouse
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: lighthouse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      LIGHTHOUSE_DB_HOST: localhost
+      LIGHTHOUSE_DB_PORT: 5432
+      LIGHTHOUSE_DB_NAME: lighthouse
+      LIGHTHOUSE_DB_USER: lighthouse
+      LIGHTHOUSE_DB_PASSWORD: testpassword
+      LIGHTHOUSE_JWT_SECRET_KEY: test-secret-key-for-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install ".[dev]"
+      - name: Run migrations
+        run: cd backend && alembic upgrade head
+      - name: Run tests
+        run: cd backend && pytest tests/ -v --cov=lighthouse_api
+
+  frontend-test:
+    needs: lint-and-typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install and build
+        run: |
+          cd frontend
+          npm ci
+          npm run build
