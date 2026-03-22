@@ -87,7 +87,8 @@ jobs:
           try:
               with open('/tmp/pip-audit.json') as f:
                   data = json.load(f)
-                  pip_vulns = len(data.get('dependencies', []))
+                  for dep in data.get('dependencies', []):
+                      pip_vulns += len(dep.get('vulns', []))
                   score -= pip_vulns * 5
           except (FileNotFoundError, json.JSONDecodeError):
               pass
