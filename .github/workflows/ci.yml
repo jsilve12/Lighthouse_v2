@@ -63,9 +63,9 @@ jobs:
 
       - name: Compute security score
         id: score
+        shell: python
         run: |
-          SCORE=$(python3 << 'PYEOF'
-          import json, sys
+          import json, sys, os
 
           score = 100
           bandit_issues = []
@@ -115,16 +115,13 @@ jobs:
           if npm_high or npm_mod:
               print(f"npm audit: {npm_high} high, {npm_mod} moderate")
 
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"score={score}\n")
+
           if score < 70:
               print(f"FAIL: Security score {score}/100 is below threshold of 70")
               sys.exit(1)
           print(f"PASS: Security score {score}/100")
-          PYEOF
-          )
-          echo "$SCORE"
-          # Extract numeric score for output
-          NUMERIC=$(echo "$SCORE" | grep -oP '\d+(?=/100)' | tail -1)
-          echo "score=${NUMERIC}" >> "$GITHUB_OUTPUT"
 
       - name: Post score to summary
         if: always()
@@ -209,7 +206,7 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
       - name: Install dependencies
         run: |
-          pip install hatchling
+          pip install hatchling psycopg2-binary
           cd backend && pip install ".[dev]"
       - name: Create tables and run tests
         run: |
@@ -220,6 +217,7 @@ jobs:
           from sqlalchemy import create_engine
           eng = create_engine(settings.database_url_sync)
           Base.metadata.create_all(eng)
+          print('Tables created')
           "
           pytest tests/ -v --cov=lighthouse_api || true
 
