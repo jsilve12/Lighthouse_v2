@@ -1,14 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchDataset } from '../api/datasets';
 import { fetchFolders } from '../api/folders';
 import { fetchSchemas, fetchSchema } from '../api/schemas';
 import { SecurityBadge } from '../components/common/StatusBadge';
-import { ArrowLeft, ChevronDown, Save, Shield, DollarSign, Lock } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Save } from 'lucide-react';
 import api from '../api/client';
-import type { SchemaField, SchemaVersion } from '../types/schema';
-import type { Folder } from '../types/folder';
+import type { SchemaField } from '../types/schema';
 
 interface EditableField {
   id: string;
@@ -290,7 +289,6 @@ export default function DatasetDetailPage() {
 
   if (!dataset) return <div className="text-[#4a4a58] text-sm">Loading...</div>;
 
-  const selectedFolder = folders?.find((f) => f.id === selectedFolderId);
   const selectedSchema = schemas?.find((s) => s.id === selectedSchemaId);
 
   return (

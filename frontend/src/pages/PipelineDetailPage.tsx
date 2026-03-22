@@ -6,11 +6,10 @@ import { fetchDatasets } from '../api/datasets';
 import { fetchAlarmEvents, acknowledgeAlarm, fetchScripts, createScript, createScriptVersion } from '../api/monitoring';
 import StatusBadge from '../components/common/StatusBadge';
 import Editor from '@monaco-editor/react';
-import { ArrowLeft, Play, Settings, Code2, BookOpen, Rocket, Bell, Plus, X, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Play, Settings, Code2, BookOpen, Rocket, Bell, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../api/client';
-import type { PipelineStep } from '../types/pipeline';
-import type { SQLScript, SQLScriptVersion, AlarmRule } from '../types/monitoring';
+import type { SQLScriptVersion, AlarmRule } from '../types/monitoring';
 
 const TABS = [
   { id: 'config', label: 'Config', icon: Settings },
@@ -66,7 +65,7 @@ function ConfigTab({ pipelineId }: { pipelineId: string }) {
   );
 }
 
-function TransformationsTab({ pipelineId }: { pipelineId: string }) {
+function TransformationsTab({ pipelineId: _pipelineId }: { pipelineId: string }) {
   const queryClient = useQueryClient();
   const { data: scripts } = useQuery({ queryKey: ['scripts'], queryFn: fetchScripts });
   const [selectedScript, setSelectedScript] = useState<string | null>(null);
@@ -163,8 +162,7 @@ function TransformationsTab({ pipelineId }: { pipelineId: string }) {
   );
 }
 
-function NotebookTab({ pipelineId }: { pipelineId: string }) {
-  const { data: scripts } = useQuery({ queryKey: ['scripts'], queryFn: fetchScripts });
+function NotebookTab({ pipelineId: _pipelineId }: { pipelineId: string }) {
   const [cells, setCells] = useState<Array<{ id: string; sql: string; output: string | null; running: boolean }>>([
     { id: '1', sql: '-- Cell 1: Query your data\nSELECT 1 AS test;', output: null, running: false },
   ]);
