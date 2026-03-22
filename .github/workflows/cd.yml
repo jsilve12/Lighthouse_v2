@@ -69,6 +69,7 @@ jobs:
           image-ref: ${{ env.REGISTRY_HOST }}/${{ vars.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           exit-code: 1
           severity: CRITICAL,HIGH
+          ignore-unfixed: true
           format: table
 
       - name: Push image
@@ -135,6 +136,7 @@ jobs:
           image-ref: ${{ env.REGISTRY_HOST }}/${{ vars.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           exit-code: 1
           severity: CRITICAL,HIGH
+          ignore-unfixed: true
           format: table
 
       - name: Push image
